@@ -88,8 +88,7 @@
       gamma_center_limit = 500d0
       power_he_burn_upper_limit = 1d6
       stop_at_TP =.true.
- 
- 
+
 !PHYSICS
 
       !only for the first 100 model steps
