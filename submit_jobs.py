@@ -46,10 +46,9 @@ if __name__ == "__main__":
         vvcrit = float(sys.argv[4])
         name = sys.argv[5]
         value = float(sys.argv[6])
-        try:
-            orig = lowinter[name]
-            lowinter[name] = value
-            print name, 'overwritten from', orig, 'to', value
+        orig = lowinter[name]
+        lowinter[name] = value
+        print name, 'overwritten from', orig, 'to', value
 
     net_name = 'mesa_49.net'
 
