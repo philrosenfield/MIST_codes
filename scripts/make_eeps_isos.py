@@ -77,7 +77,7 @@ def make_eeps_isos(runname, basic=False, fsps=False):
     lowmass_num_lines = 12 + 1
     intmass_num_lines = 12 + 1
     highmass_num_lines = 12 + 1
-    for i_l, line in enumerate(inputeep_data[2:8]):
+    for i_l, line in enumerate(inputeep_data[2:11]):
         #Get the secondary EEP number
         numseceep = int(line.strip('\n').split(' ')[-1])
         #Add one for each primary EEP
@@ -89,6 +89,7 @@ def make_eeps_isos(runname, basic=False, fsps=False):
 
     #Generate a list of incomplete EEPs
     eeps_directory = os.path.join(home_run_directory, "eeps")
+    print glob.glob(eeps_directory + "/*.eep")
     incomplete_eeps_arr = []
     for eepname in glob.glob(eeps_directory + "/*.eep"):
         #Remove the pre-blended EEPs
@@ -98,6 +99,7 @@ def make_eeps_isos(runname, basic=False, fsps=False):
         #Check the length of each EEP file and identify the ones that are incomplete
         numeeps = int(subprocess.Popen('wc -l '+eepname, stdout=subprocess.PIPE, shell=True).stdout.read().split(' ')[-2])
         mass_val = float(eepname.split('M.track')[0].split('/')[-1])/100.0
+        print mass_val, numeeps, lowmass_num_lines, intmass_num_lines, highmass_num_lines
         if ((mass_val<=0.7)&(numeeps!=lowmass_num_lines)):
             incomplete_eeps_arr.append(eepname)
         if ((mass_val>0.7)&(mass_val<10.0)&(numeeps!=intmass_num_lines)):

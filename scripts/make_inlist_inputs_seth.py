@@ -34,14 +34,13 @@ def make_inlist_inputs(runname, startype, feh, afe, zbase, rot, net):
     #Array of all masses
     massgrid = lambda i,f,step: np.linspace(i,f,round(((f-i)/step))+1.0)
 
-    # bigmassgrid = np.unique(np.hstack(massgrid(0.6,2.0,0.1)))
-    bigmassgrid = np.unique(np.hstack(massgrid(1., 5., 1.))) 
+    bigmassgrid = np.unique(np.hstack(massgrid(0.6,2.0,0.1)))
+#    bigmassgrid = np.unique(np.hstack(massgrid(2.1,3.0,0.1))) 
 
 
-    # bigmassgrid = np.unique(np.hstack((massgrid(0.1, 0.5, 0.05), 
-    #                                    massgrid(0.5, 2.0, 0.1), 
-    #                                    massgrid(2.0, 12.0, 0.5),  
-    #                                    massgrid(12.0, 20.0, 2))))
+    #bigmassgrid = np.unique(np.hstack((massgrid(0.1,2.0,0.05),massgrid(2.0,3.0,0.1),massgrid(3.0,8.0,0.5),\
+    #                                    massgrid(9,20,1), massgrid(20,40,5),\
+    #                                    massgrid(40,150,10),massgrid(150, 300, 25))))
 
     #Choose the correct mass range and boundary conditions                                   
     if (startype == 'VeryLow'):

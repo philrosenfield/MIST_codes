@@ -95,38 +95,39 @@ if __name__ == "__main__":
     if dobotheeps:
         make_eeps_isos.make_eeps_isos(runname, basic=True)
 
-    if doplot:
-        print "************************************************************"
-        print "******************PLOTTING THE EEPS FILES*******************"
-        print "************************************************************"
-        os.mkdir(os.path.join(newdirname, "plots"))
-        mesa_plot_grid.plot_HRD(runname)
-        mesa_plot_grid.plot_combine(runname, iso=False, remove_pdf=False)
-        
-        print "************************************************************"
-        print "******************PLOTTING THE ISOCHRONES*******************"
-        print "************************************************************"
-        mesa_plot_grid.plot_iso(runname)
-        mesa_plot_grid.plot_combine(runname, iso=True, remove_pdf=False)
-    
-    print "************************************************************"
-    print "******COMPRESSING BOTH TRACKS AND REDUCED DIRECTORIES*******"
-    print "************************************************************"
-    #make a separate tracks directory
-    os.system("mv " + os.path.join(newdirname, "tracks") + " " + newdirname + "_tracks")
-    os.system("cp " + os.path.join(newdirname, "tracks_summary.txt") + " " + newdirname + "_tracks")
+    if False:
+        if doplot:
+            print "************************************************************"
+            print "******************PLOTTING THE EEPS FILES*******************"
+            print "************************************************************"
+            os.mkdir(os.path.join(newdirname, "plots"))
+            mesa_plot_grid.plot_HRD(runname)
+            mesa_plot_grid.plot_combine(runname, iso=False, remove_pdf=False)
 
-    os.chdir(os.environ['MIST_GRID_DIR'])    
-    #When decompressed, this .tar.gz opens a MIST_vXX/feh_XXX_afe_XXX directory
-    os.system("tar -zcvf " + '_'.join(runname.split('/')) + ".tar.gz " + runname)
-    os.system("tar -zcvf " + '_'.join(runname.split('/')) + "_tracks.tar.gz " + runname+'_tracks')
-    
-    print "************************************************************"
-    print "****************MIGRATING FILES TO STORAGE******************"
-    print "************************************************************"
-    os.system("rm -rf " + runname)
-    os.system("rm -rf " + runname + '_tracks')
-    os.system("mv " + rawdirname + " " + os.path.join(os.environ['STORE_DIR'], runname.split('/')[0]))
-    os.system("mv " + '_'.join(runname.split('/')) + ".tar.gz " + os.path.join(os.environ['STORE_DIR'], runname.split('/')[0]))
-    os.system("mv " + '_'.join(runname.split('/')) + "_tracks.tar.gz " + os.path.join(os.environ['STORE_DIR'], runname.split('/')[0]))
+            print "************************************************************"
+            print "******************PLOTTING THE ISOCHRONES*******************"
+            print "************************************************************"
+            mesa_plot_grid.plot_iso(runname)
+            mesa_plot_grid.plot_combine(runname, iso=True, remove_pdf=False)
+
+        print "************************************************************"
+        print "******COMPRESSING BOTH TRACKS AND REDUCED DIRECTORIES*******"
+        print "************************************************************"
+        #make a separate tracks directory
+        os.system("mv " + os.path.join(newdirname, "tracks") + " " + newdirname + "_tracks")
+        os.system("cp " + os.path.join(newdirname, "tracks_summary.txt") + " " + newdirname + "_tracks")
+
+        os.chdir(os.environ['MIST_GRID_DIR'])    
+        #When decompressed, this .tar.gz opens a MIST_vXX/feh_XXX_afe_XXX directory
+        os.system("tar -zcvf " + '_'.join(runname.split('/')) + ".tar.gz " + runname)
+        os.system("tar -zcvf " + '_'.join(runname.split('/')) + "_tracks.tar.gz " + runname+'_tracks')
+
+        print "************************************************************"
+        print "****************MIGRATING FILES TO STORAGE******************"
+        print "************************************************************"
+        os.system("rm -rf " + runname)
+        os.system("rm -rf " + runname + '_tracks')
+        os.system("mv " + rawdirname + " " + os.path.join(os.environ['STORE_DIR'], runname.split('/')[0]))
+        os.system("mv " + '_'.join(runname.split('/')) + ".tar.gz " + os.path.join(os.environ['STORE_DIR'], runname.split('/')[0]))
+        os.system("mv " + '_'.join(runname.split('/')) + "_tracks.tar.gz " + os.path.join(os.environ['STORE_DIR'], runname.split('/')[0]))
 

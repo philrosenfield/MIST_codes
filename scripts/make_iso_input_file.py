@@ -68,12 +68,16 @@ def make_iso_input_file(runname, mode, basic, incomplete=[]):
     dirname_split = dirname.split('_')
     feh = dirname_split[1]
     afe = dirname_split[3]
-    vvcrit = dirname_split[4]
+    if 'vvcrit' in dirname:
+        vidx = dirname_split.index('vvcrit') 
+        vvcrit = dirname_split[vidx + 1]
+    else:
+        vvcrit = 'vvcrit0.4'
 
-    fehval = float(feh[1:])*1.0
+    fehval = float(feh.replace('m', '').replace('p', ''))
     if 'm' in feh:
         fehval *= -1.0
-    afeval = float(afe[1:])*1.0
+    afeval = float(afe.replace('m', '').replace('p', ''))
     if 'm' in afe:
         afeval *= -1.0
 

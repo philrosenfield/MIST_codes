@@ -1,4 +1,4 @@
-!high mass
+!low and intermediate mass
 
 &star_job
 !EOS
@@ -6,7 +6,7 @@
       set_HELM_OPAL_Zs = .true.
       Z_all_HELM = 0.10d0
       Z_all_OPAL = 0.10d0
-
+      
 !PMS
 
       create_pre_main_sequence_model = .true.
@@ -16,6 +16,7 @@
 !MISC. SETUP
 	  
       history_columns_file = 'my_history_columns.list'
+      save_model_filename = '<<MASS>>M<<BC_LABEL>>_pAGB.mod'
 	  
       !parameters to be used for mass on/off for rotation
       extras_lrpar = 3
@@ -23,7 +24,6 @@
       extras_rpar(2) = 1.8 !full on
       extras_rpar(3) = <<ROT>> !omega_div_omega_crit
       extras_rpar(4) = <<FEH>>
-
 !OPACITY, NETWORK, RATE, etc.
 
       !network 
@@ -33,9 +33,9 @@
       !first 100 models are run with simple_photosphere then switched to the following
       !need the [a/Fe] info to pick the correct BC table
       extras_lcpar = 2
-      extras_cpar(1) = '<<BC_TABLE>>'
+      extras_cpar(1) = 'photosphere_tables'
       extras_cpar(2) = '<<AFE>>'
-      
+	  
       !opacities with AGSS09 abundances
       kappa_file_prefix = 'agss09_<<AFE>>'
       kappa_lowT_prefix = 'lowT_agss09_<<AFE>>'
@@ -45,7 +45,7 @@
       !use jina
       set_rates_preference = .true.
       new_rates_preference = 2
-	  
+
 !SET INITIAL ABUNDANCES
 
     file_for_uniform_xa = 'input_initial_xa.data'
@@ -58,7 +58,7 @@
     log_Gamma_all_HELM = 1.0d0
     log_Gamma_all_PC = 1.3010299956d0
     PC_min_Z = 0.999d0
-	          
+
 / ! end of star_job namelist
 
 &controls
@@ -73,36 +73,42 @@
       write_header_frequency = 10
       photo_digits = 5
       photo_interval = 1000
-      
+
       star_history_dbl_format = '(1pes32.16e3, 1x)'
       star_history_int_format = '(i32, 1x)'
       star_history_txt_format = '(a32, 1x)'
-   
+
       star_history_name = '<<MASS>>M<<BC_LABEL>>_history.data'
       write_controls_info_with_profile = .false.
       write_profiles_flag = .false.
-				
+
 !WHEN TO STOP
 
-      !in run_star_extras, it's set to C12 depletion in the core
+      !in run_star_extras, it's set to H1 depletion in the core for low mass stars
       gamma_center_limit = 500d0
+      power_he_burn_upper_limit = 1d6
+      stop_at_TP =.true.
+ 
  
 !PHYSICS
 
       !only for the first 100 model steps
       which_atm_option = 'simple_photosphere'
-	  	 
+
       use_Ledoux_criterion = .true.
       alpha_semiconvection = 0.1d0
       thermohaline_coeff = 666.0d0
-		 
-      mixing_length_alpha = 1.8475d0
+
+      !mixing_length_alpha = 2.008d0 
+      !mixing_length_alpha = 1.713d0 
+      !mixing_length_alpha = 1.8475d0
+      mixing_length_alpha = 1.884d0
       mlt_option = 'Henyey'
-      
+	  
       !to help with convergence
       okay_to_reduce_gradT_excess = .true.
       Pextra_factor = 2.0
-	  
+
       !H core overshoot calibrated to M67
       overshoot_f_above_nonburn_core = 0.016
       overshoot_f_above_burn_h_core  = 0.016
@@ -114,23 +120,26 @@
       overshoot_f0_above_burn_z_core  = 0.008
 
       !envelope overshoot calibrated to the sun
-      overshoot_f_above_nonburn_shell = 0.032
-      overshoot_f_below_nonburn_shell = 0.032
-      overshoot_f_above_burn_h_shell  = 0.032
-      overshoot_f_below_burn_h_shell  = 0.032
-      overshoot_f_above_burn_he_shell = 0.032
-      overshoot_f_below_burn_he_shell = 0.032
-      overshoot_f_above_burn_z_shell  = 0.032
-      overshoot_f_below_burn_z_shell  = 0.032
-      overshoot_f0_above_nonburn_shell = 0.016
-      overshoot_f0_below_nonburn_shell = 0.016
-      overshoot_f0_above_burn_h_shell  = 0.016
-      overshoot_f0_below_burn_h_shell  = 0.016
-      overshoot_f0_above_burn_he_shell = 0.016
-      overshoot_f0_below_burn_he_shell = 0.016
-      overshoot_f0_below_burn_z_shell  = 0.016
-      overshoot_f0_above_burn_z_shell  = 0.016
-		 
+      overshoot_f_above_nonburn_shell = 0.004
+      overshoot_f_below_nonburn_shell = 0.004
+      overshoot_f_above_burn_h_shell  = 0.004
+      overshoot_f_below_burn_h_shell  = 0.004
+      overshoot_f_above_burn_he_shell = 0.004
+      overshoot_f_below_burn_he_shell = 0.004
+      overshoot_f_above_burn_z_shell  = 0.004
+      overshoot_f_below_burn_z_shell  = 0.004
+      overshoot_f0_above_nonburn_shell = 0.002
+      overshoot_f0_below_nonburn_shell = 0.002
+      overshoot_f0_above_burn_h_shell  = 0.002
+      overshoot_f0_below_burn_h_shell  = 0.002
+      overshoot_f0_above_burn_he_shell = 0.002
+      overshoot_f0_below_burn_he_shell = 0.002
+      overshoot_f0_below_burn_z_shell  = 0.002
+      overshoot_f0_above_burn_z_shell  = 0.002
+
+      !enhance `overshoot_f_below_nonburn_shell` by this factor during 3DUP in TPAGB
+      overshoot_below_noburn_shell_factor = 10
+      
       !CO enhanced opacities
       use_Type2_opacities = .true.
       kap_Type2_full_off_X = 1d-3
@@ -139,8 +148,8 @@
 
       !low T Type2 opacties          
       use_other_kap = .true.
-	     
-      !rotational mixing if applicable	 
+      
+      !rotational mixing if applicable
       D_SH_factor =  1.0
       D_SSI_factor = 1.0
       D_ES_factor =  1.0
@@ -149,19 +158,15 @@
       D_ST_factor = 0.0
       am_D_mix_factor = 0.033
       am_gradmu_factor = 0.05
-		      
+
       !mass loss
-      cool_wind_RGB_scheme = 'Dutch'
-      cool_wind_AGB_scheme = 'Dutch'
-      hot_wind_scheme = 'Dutch'
+      use_other_wind = .true.
+      
+      Reimers_scaling_factor = 0.1
+      Blocker_scaling_factor = 0.2
+      Vink_scaling_factor = 1.0
 
-      Dutch_scaling_factor = 1.0
-
-      cool_wind_full_on_T  = 1.0d4
-      cool_wind_full_off_T  = 1.0d4
-      hot_wind_full_on_T  = 1.0d4
-      hot_wind_full_off_T = 1.0d4
-
+      RGB_to_AGB_wind_switch = 1d-2
       max_wind = 1d-3
 
       !diffusion
@@ -169,12 +174,12 @@
       diffusion_dt_limit = 3.15e13
       diffusion_min_T_at_surface = 1d3
       diffusion_min_dq_at_surface = 1d-3
-      turbulent_diffusion_D0 = 0
+      turbulent_diffusion_D0 = 1
       turbulent_diffusion_rho_max = 1d-1
-
-      diffusion_gamma_full_on = 165 
+      
+      diffusion_gamma_full_on = 165
       diffusion_gamma_full_off = 175
-
+                 
       diffusion_num_classes = 7
               
       diffusion_class_representative(1) = 'h1'
@@ -200,53 +205,40 @@
       diffusion_class_typical_charge(5) = 10
       diffusion_class_typical_charge(6) = 10
       diffusion_class_typical_charge(7) = 21
-     
+      
       !to help with breathing pulses
-      include_dmu_dt_in_eps_grav = .true. 
- 
+      include_dmu_dt_in_eps_grav = .true.
+
 !CORE MASS DEFINITION
-	  
+
       he_core_boundary_h1_fraction = 1d-4
       c_core_boundary_he4_fraction = 1d-4
       o_core_boundary_c12_fraction = 1d-4
-		 		 
+	  	  
 !MESH AND TIMESTEP PARAMETERS
 
-      mesh_delta_coeff = 0.5
+      mesh_delta_coeff = 1.0
       varcontrol_target = 1d-4
       max_allowed_nz = 50000
 	  
       !better resolution of the Henyey hook
       delta_lg_XH_cntr_max = -1
-		 
-	  !limit on magnitude of relative change at any grid point
+
+      ! limit for magnitude of max change
       delta_lgTeff_limit = 0.005
       delta_lgTeff_hard_limit = 0.01
       delta_lgL_limit = 0.02 
       delta_lgL_hard_limit = 0.05
-
-	  !increase resolution
-      mesh_logX_species(1) = 'h1'
-      mesh_logX_min_for_extra(1) = -6
-      mesh_dlogX_dlogP_extra(1) = 0.25
-      
-      mesh_logX_species(2) = 'he4'
-      mesh_logX_min_for_extra(2) = -6
-      mesh_dlogX_dlogP_extra(2) = 0.25
-	  
-      mesh_logX_species(3) = 'c12'
-      mesh_logX_min_for_extra(3) = -6
-      mesh_dlogX_dlogP_extra(3) = 0.25
 	  
       !multiply mesh_delta_coeff in overshooting regions by this factor
-      xtra_coef_os_above_nonburn = 0.25
-      xtra_coef_os_below_nonburn = 0.25
-      xtra_coef_os_above_burn_h = 0.25
-      xtra_coef_os_below_burn_h = 0.25
-      xtra_coef_os_above_burn_he = 0.25
-      xtra_coef_os_below_burn_he = 0.25
-      xtra_coef_os_above_burn_z = 0.25
-      xtra_coef_os_below_burn_z = 0.25
+      xtra_coef_os_above_nonburn = 0.5
+      xtra_coef_os_below_nonburn = 0.5
+      xtra_coef_os_above_burn_h = 0.5
+      xtra_coef_os_below_burn_h = 0.5
+      xtra_coef_os_above_burn_he = 0.5
+      xtra_coef_os_below_burn_he = 0.5
+      xtra_coef_os_above_burn_z = 0.5
+      xtra_coef_os_below_burn_z = 0.5
 
 ! SOLVER OPTIONS
 !  updates to these from 7503     to    9691
@@ -257,6 +249,6 @@
 
 / ! end of controls namelist
 
-&pgstar
-         
+&pgstar         
+
 / ! end of pgstar namelist

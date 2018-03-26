@@ -26,6 +26,7 @@
     use const_def
     use crlibm_lib
     use chem_def
+    use kapCN
       
     implicit none
     
@@ -115,9 +116,42 @@
         photosphere_summary = 'table_' // trim(s% job% extras_cpar(2)) // '_summary.txt'
         tau100_summary = 'table100_' // trim(s% job% extras_cpar(2)) // '_summary.txt'
         call table_atm_init(.true., tau100_summary, photosphere_summary, ierr)
-        
+
+
+        s% category_factors = 1d0
+
+        !now set f_ov_below_nonburn from [Fe/H] at extras_cpar(3)
+        s% overshoot_f_below_nonburn_shell = f_ov_below_nonburn(s% job% extras_rpar(4))
+        s% overshoot_f0_below_nonburn_shell = 0.5d0 * s% overshoot_f_below_nonburn_shell
+
+        !s% overshoot_f_above_burn_h_core = f_ov_above_burn_h_core(s% initial_mass)
+        !s% overshoot_f0_above_burn_h_core = 0.5d0* s% overshoot_f_above_burn_h_core
+
     end function extras_startup
     
+    function f_ov_above_burn_h_core(m) result(f_ov)
+      real(dp), intent(in) :: m
+      real(dp), parameter :: f_ov_default = 1.6d-2
+      real(dp) :: frac, f_ov
+      if(m < 1.0d0) then
+          frac=0.0d0
+      elseif(m > 2.0d0)then
+          frac =  1.0d0 
+      else
+          frac = 0.5d0*(1.0d0-cos_cr(pi*(m-1.0d0)))
+      endif
+      f_ov = f_ov_default * frac
+    end function f_ov_above_burn_h_core
+
+    function f_ov_below_nonburn(feh) result(f_ov)
+      real(dp), intent(in) :: feh
+      real(dp) :: f_ov
+      real(dp), parameter :: max_f = 8.0d-2
+      real(dp), parameter :: min_f = 1.0d-2
+      f_ov = 1.6d-2 - 2.7d-2*feh
+      f_ov = min(max(f_ov, min_f),max_f)
+    end function f_ov_below_nonburn
+
     
     integer function extras_check_model(id, id_extra)
         integer, intent(in) :: id, id_extra
@@ -138,7 +172,7 @@
         ierr = 0
         call star_ptr(id, s, ierr)
         if (ierr /= 0) return
-        how_many_extra_history_columns = 8
+        how_many_extra_history_columns = 10
     end function how_many_extra_history_columns
     
     
@@ -257,6 +291,19 @@
         names(8) = 'envelope_binding_energy'
         vals(8) = total_env_binding_E
     
+        names(9) = 'k_2'
+        vals(9) = calculate_k(2, s% nz, s% rho_face, s% r, s% m,ierr)
+        if(ierr/=0) then
+            write(*,*) 'problem calculating k2'
+            ierr=0 !keep going
+        endif
+
+        names(10) = 'total_moment_of_inertia'
+        if(.not.s% rotation_flag)then
+           vals(10) = 0d0
+        else
+           vals(10) = dot_product(s% dm_bar(1:s% nz), s% i_rot(1:s% nz))
+        endif
     end subroutine data_for_extra_history_columns
     
     
@@ -322,7 +369,7 @@
         if (rot_set_check == 0) then
             if ((s% job% extras_rpar(3) > 0.0) .and. (s% initial_mass > rot_full_off)) then
                 !check if ZAMS is achieved, then set rotation
-                if ((abs(log10(s% L_nuc_burn_total * Lsun / s% L(1))) < 0.01) .and. (s% star_age > 1d2)) then
+                if ((abs(log10(s% power_h_burn * Lsun / s% L(1))) < 0.01) ) then
                     if (s% initial_mass <= rot_full_on) then
                         frac2 = (s% initial_mass - rot_full_off) / (rot_full_on - rot_full_off)
                         frac2 = 0.5d0*(1 - cos(pi*frac2))
@@ -393,10 +440,9 @@
 	    		call star_save_for_restart(id, photoname, ierr)
 	    		
 	    		!turn off burning
-                s% category_factors(3:)=0.0
                 call set_rate_factors_from_categories(id,ierr)
                 if(ierr/=0) return
-	    		burn_check = 1.0
+	    	burn_check = 1.0
                 
                 !diffusion
                 s% do_Ne22_sedimentation_heating = .true.
@@ -444,7 +490,42 @@
 			
     end function extras_finish_step
     	  
-          
+
+     
+      subroutine set_rate_factors_from_categories(id, ierr)
+      use rates_def, only: reaction_categories
+      use net_def, only: Net_General_Info, get_net_ptr
+      use star_def, only: star_info,get_star_ptr
+      integer, intent(in) :: id
+      integer, intent(out) :: ierr
+      type (star_info), pointer :: s
+      integer :: j, ind, icat
+      type (Net_General_Info), pointer :: g
+      integer, pointer :: net_reaction_ptr(:)
+      ierr = 0
+      call get_star_ptr(id, s, ierr)
+      if (ierr /= 0) return
+      
+      ierr = 0
+
+      call get_net_ptr(s%net_handle, g, ierr)
+      if(ierr/=0) return
+
+      !Rob's version
+      s% rate_factors=0d0
+
+      do j=1,g %num_reactions
+         ind = g% reaction_id(j)
+         icat = reaction_categories(ind)
+         if(icat==ipp .or. icat==icno .or. icat==i3alf) s% rate_factors(j)=1d0
+      enddo
+
+      s% weak_rate_factor = 0d0
+      
+      end subroutine set_rate_factors_from_categories
+
+
+
 	subroutine low_mass_wind_scheme(id, Lsurf, Msurf, Rsurf, Tsurf, w, ierr)
         use star_def
         use chem_def, only: ih1, ihe4
@@ -884,12 +965,16 @@
                 read(iounit,'(a)') ai% table_atm_files(i)
                 read(iounit,'(14x,i4)') tmp_version(i)
                 read(iounit,1) ai% logZ(i), ai% alphaFe(i), ai% atm_mix(i), ibound(1:ng,i)
-                !ibound(1:ng,i) = ibound(1,i)
+                ibound(1:ng,i) = ibound(1,i)
             enddo
         
             !read Teff_array
             read(iounit,*)            !text
             read(iounit,2) ai% Teff_array(:)
+
+            do i = 1,ai% nT
+               ai% Teff_array(i) = log_cr(ai% Teff_array(i))
+            enddo
               
             !read logg_array
             read(iounit,*)            !text
@@ -914,5 +999,89 @@
         end subroutine load_table_summary
         
       end subroutine table_atm_init
+
+    real(dp) function calculate_k(j,n_old,rho_old,r_old,m_old,ierr)
+    ! j is the index of the interior structure constant; k_2 (j=2) is the most common
+    ! k_j = (j + 1 - eta(R))/(2*(j+eta(R))) where eta is the solution obtained by
+    ! integrating Radau's ODE over the interior structure of the star
+    use utils_lib, only: is_bad_num
+    use interp_1d_def
+    use interp_1d_lib
+    implicit none
+    integer, intent(in) :: j, n_old
+    real(dp), intent(in) :: rho_old(n_old), r_old(n_old), m_old(n_old)
+    integer, intent(out) :: ierr
+    real(dp), parameter :: h = 1d-3, const = 4d0*pi/3d0
+    integer :: i, l
+    real(dp), target :: work_ary(n_old*pm_work_size), f_ary(4*n_old), g_ary(4*n_old)
+    real(dp), pointer :: work(:), f1(:), f(:,:), g1(:), g(:,:)
+    real(dp) :: rho0, rho_bar0, r_div_R(n_old)
+    real(dp) :: jjj, k(4), w(4), eta_new, eta, r
+
+    !weights for RK sum  
+    w = [1d0, 2d0, 2d0, 1d0]
+      
+    !need all of this crap to interface with interp_1d
+    ierr = 0
+    work => work_ary
+    f1 => f_ary
+    g1 => g_ary
+    f(1:4,1:n_old) => f1(1:4*n_old)
+    g(1:4,1:n_old) => g1(1:4*n_old)
+      
+    !f and g are interpolants for rho and rho_bar, resp.
+    !note also that MESA sets index 1 at the "surface" and n_old at the center
+    !this code reverses the order of the arrays  
+    f(1,1:n_old) = rho_old(n_old:1:-1)
+    r_div_R=r_old(n_old:1:-1)/r_old(1)
+
+    !make an interpolating function for rho(r) scaling r/R
+    call interp_pm(r_div_R, n_old, f1, pm_work_size, work, 'k', ierr)
+    
+    !now calculate rho_bar = spherically averaged rho
+    do i=1,n_old
+       l=n_old-i+1
+       g(1,i) = m_old(l)/(const*r_old(l)*r_old(l)*r_old(l))
+    enddo
+
+    !make an interpolating function rho_bar(r) scaling r/R
+    call interp_pm(r_div_R, n_old, g1, pm_work_size, work, 'k', ierr)
+
+    !now solve Radau's equation for eta(R)
+    eta = 0d0
+    jjj=real(j*j + j, kind=dp)
+
+    !do RK4 integration
+    r = 0.002d0
+    do while(r <= 1d0)
+       !1st approx  
+       call interp_value(r_div_R, n_old, f1, r, rho0, ierr)
+       call interp_value(r_div_R, n_old, g1, r, rho_bar0, ierr)
+       k(1) = (jjj - eta*(eta-1d0) - 6d0*(rho0/rho_bar0)*(eta+1d0))/r
+       !2nd
+       eta_new = eta + 0.5d0*k(1)*h
+       call interp_value(r_div_R, n_old, f1, r+0.5d0*h, rho0, ierr)
+       call interp_value(r_div_R, n_old, g1, r+0.5d0*h, rho_bar0, ierr)
+       k(2) = (jjj - eta_new*(eta_new-1d0) - 6*(rho0/rho_bar0)*(eta_new+1d0))/(r+0.5d0*h)
+       !3rd
+       eta_new = eta + 0.5d0*k(2)*h
+       k(3) = (jjj - eta_new*(eta_new-1d0) - 6*(rho0/rho_bar0)*(eta_new+1d0))/(r+0.5d0*h)
+       !4th
+       eta_new = eta + k(3)*h
+       call interp_value(r_div_R, n_old, f1, r+h, rho0, ierr)
+       call interp_value(r_div_R, n_old, g1, r+h, rho_bar0, ierr)
+       k(4) = (jjj - eta_new*(eta_new-1d0) - 6*(rho0/rho_bar0)*(eta_new+1d0))/(r+h)
+       !weighted average gives the final update
+       eta = eta + h*dot_product(w,k)/6d0
+       r = r + h
+    enddo
+
+    calculate_k = 0.5d0*(real(j+1,kind=dp) - eta)/(real(j,kind=dp) + eta)
+    if(is_bad_num(calculate_k))then
+       ierr=-1
+       calculate_k = -1d0
+    endif
+
+  end function calculate_k
      
     end module run_star_extras

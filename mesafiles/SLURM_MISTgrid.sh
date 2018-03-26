@@ -4,7 +4,7 @@
 #SBATCH -N 1
 #SBATCH -t <<RUNTIME>>
 #SBATCH --mem 8000
-#SBATCH -p conroy
+#SBATCH -p conroy-intel
 #SBATCH -o <<RUNNAME>>.o
 #SBATCH -e <<RUNNAME>>.e
 
