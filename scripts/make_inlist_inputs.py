@@ -156,4 +156,3 @@ def make_inlist_inputs(runname, startype, feh, afe, zbase, rot, net,
             ]
 
     return replist
-

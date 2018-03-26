@@ -1,11 +1,17 @@
 !low and intermediate mass
 
 &star_job
+!EOS
+
+      set_HELM_OPAL_Zs = .true.
+      Z_all_HELM = 0.10d0
+      Z_all_OPAL = 0.10d0
 
 !PMS
 
       create_pre_main_sequence_model = .true.
       pre_ms_T_c = 5d5
+      pre_ms_relax_num_steps = 20
 
 !MISC. SETUP
 
@@ -16,37 +22,42 @@
       extras_lrpar = 3
       extras_rpar(1) = 1.2 !full off
       extras_rpar(2) = 1.8 !full on
-      extras_rpar(3) = 0.4 !omega_div_omega_crit
-
+      extras_rpar(3) = <<ROT>> !omega_div_omega_crit
+      extras_rpar(4) = <<FEH>>
 !OPACITY, NETWORK, RATE, etc.
 
       !network
       change_net = .true.
-      new_net_name = 'mesa_49.net'
+      new_net_name = '<<NET>>'
 
       !first 100 models are run with simple_photosphere then switched to the following
-      extras_lcpar = 1
-      extras_cpar(1) = '<<BC_TABLE>>'
+      !need the [a/Fe] info to pick the correct BC table
+      extras_lcpar = 2
+      extras_cpar(1) = 'photosphere_tables'
+      extras_cpar(2) = '<<AFE>>'
 
       !opacities with AGSS09 abundances
-      kappa_file_prefix = 'a09'
-      kappa_lowT_prefix = 'lowT_fa05_a09p'
-      kappa_CO_prefix = 'a09_co'
+      kappa_file_prefix = 'agss09_<<AFE>>'
+      kappa_lowT_prefix = 'lowT_agss09_<<AFE>>'
+      kappa_CO_prefix = 'agss09_<<AFE>>_co'
+      kappa_config_file = 'kap_config_file.txt'
 
       !use jina
       set_rates_preference = .true.
       new_rates_preference = 2
 
-!CHANGE SOLAR ABUNDANCES
+!SET INITIAL ABUNDANCES
 
-      set_uniform_initial_composition = .true.
-      initial_h1 = <<H1>>
-      initial_h2 = <<H2>>
-      initial_he3 = <<He3>>
-      initial_he4 = <<He4>>
-      !for initial Z = <<Z>>
+    file_for_uniform_xa = 'input_initial_xa.data'
+    set_uniform_initial_xa_from_file = .true.
 
-      initial_zfracs = 6 ! AGSS09_zfracs
+    set_eos_PC_parameters = .true.
+    mass_fraction_limit_for_PC = 1d-3
+    logRho1_PC_limit = 2.999d0
+    logRho2_PC_limit = 2.8d0
+    log_Gamma_all_HELM = 1.0d0
+    log_Gamma_all_PC = 1.3010299956d0
+    PC_min_Z = 0.999d0
 
 / ! end of star_job namelist
 
@@ -58,23 +69,26 @@
 !OUTPUT OPTIONS
 
       history_interval = 1
-      terminal_interval = 10
+      terminal_interval = 100
       write_header_frequency = 10
-	  photo_digits = 5
-      photostep = 250
+      photo_digits = 5
+      photo_interval = 1000
 
       star_history_dbl_format = '(1pes32.16e3, 1x)'
       star_history_int_format = '(i32, 1x)'
       star_history_txt_format = '(a32, 1x)'
 
-      star_history_name = '<<HISTORY_NAME>>_history.data'
+      star_history_name = '<<MASS>>M<<BC_LABEL>>_history.data'
       write_controls_info_with_profile = .false.
       write_profiles_flag = .false.
 
 !WHEN TO STOP
 
       !in run_star_extras, it's set to H1 depletion in the core for low mass stars
-      gamma_center_limit = 20.0
+      gamma_center_limit = 500d0
+      power_he_burn_upper_limit = 1d6
+      stop_at_TP =.true.
+
 
 !PHYSICS
 
@@ -85,6 +99,9 @@
       alpha_semiconvection = <<ASC>>
       thermohaline_coeff = <<ATH>>
 
+      !mixing_length_alpha = 2.008d0
+      !mixing_length_alpha = 1.713d0
+      !mixing_length_alpha = 1.8475d0
       mixing_length_alpha = <<AMLT>>
       mlt_option = 'Henyey'
 
@@ -93,14 +110,14 @@
       Pextra_factor = 2.0
 
       !H core overshoot calibrated to M67
-      overshoot_f_above_nonburn_core = <<FOVC>>
-      overshoot_f_above_burn_h_core  = <<FOVC>>
-      overshoot_f_above_burn_he_core = <<FOVC>>
-      overshoot_f_above_burn_z_core  = <<FOVC>>
-      overshoot_f0_above_nonburn_core = <<FOVC0>>
-      overshoot_f0_above_burn_h_core  = <<FOVC0>>
-      overshoot_f0_above_burn_he_core = <<FOVC0>>
-      overshoot_f0_above_burn_z_core  = <<FOVC0>>
+      overshoot_f_above_nonburn_core =  0.016
+      overshoot_f_above_burn_h_core  =  0.016
+      overshoot_f_above_burn_he_core =  0.016
+      overshoot_f_above_burn_z_core  =  0.016
+      overshoot_f0_above_nonburn_core = 0.016 
+      overshoot_f0_above_burn_h_core  = 0.016
+      overshoot_f0_above_burn_he_core = 0.016
+      overshoot_f0_above_burn_z_core  = 0.016
 
       !envelope overshoot calibrated to the sun
       overshoot_f_above_nonburn_shell = 0.0174
@@ -127,7 +144,10 @@
       use_Type2_opacities = .true.
       kap_Type2_full_off_X = 1d-3
       kap_Type2_full_on_X = 1d-6
-      Zbase = 0.00 ! this is set to Z of the star in run_star_extras.f
+      Zbase = <<ZBASE>>
+
+      !low T Type2 opacties
+      use_other_kap = .true.
 
       !rotational mixing if applicable
       D_SH_factor =  1.0
@@ -139,19 +159,52 @@
       am_D_mix_factor = 0.033
       am_gradmu_factor = 0.05
 
+      !mass loss
       use_other_wind = .true.
-      RGB_wind_scheme = 'Reimers'
-      AGB_wind_scheme = 'Blocker'
-      RGB_to_AGB_wind_switch = 1d-4
-      Reimers_wind_eta = <<ETAR>>
-      Blocker_wind_eta = 0.2
+
+      Reimers_scaling_factor = <<ETAR>>
+      Blocker_scaling_factor = 0.2
+      Vink_scaling_factor = 1.0
+
+      RGB_to_AGB_wind_switch = 1d-2
       max_wind = 1d-3
 
+      !diffusion
       do_element_diffusion = .true.
       diffusion_dt_limit = 3.15e13
       diffusion_min_T_at_surface = 1d3
+      diffusion_min_dq_at_surface = 1d-3
+      turbulent_diffusion_D0 = 1
+      turbulent_diffusion_rho_max = 1d-1
 
-      radiation_turbulence_coeff = 1.0
+      diffusion_gamma_full_on = 165
+      diffusion_gamma_full_off = 175
+
+      diffusion_num_classes = 7
+
+      diffusion_class_representative(1) = 'h1'
+      diffusion_class_representative(2) = 'he3'
+      diffusion_class_representative(3) = 'he4'
+      diffusion_class_representative(4) = 'o16'
+      diffusion_class_representative(5) = 'ne20'
+      diffusion_class_representative(6) = 'ne22'
+      diffusion_class_representative(7) = 'fe56'
+
+      diffusion_class_A_max(1) = 2
+      diffusion_class_A_max(2) = 3
+      diffusion_class_A_max(3) = 4
+      diffusion_class_A_max(4) = 16
+      diffusion_class_A_max(5) = 21
+      diffusion_class_A_max(6) = 22
+      diffusion_class_A_max(7) = 10000
+
+      diffusion_class_typical_charge(1) = 1
+      diffusion_class_typical_charge(2) = 2
+      diffusion_class_typical_charge(3) = 2
+      diffusion_class_typical_charge(4) = 8
+      diffusion_class_typical_charge(5) = 10
+      diffusion_class_typical_charge(6) = 10
+      diffusion_class_typical_charge(7) = 21
 
       !to help with breathing pulses
       include_dmu_dt_in_eps_grav = .true.
@@ -186,6 +239,13 @@
       xtra_coef_os_below_burn_he = 0.5
       xtra_coef_os_above_burn_z = 0.5
       xtra_coef_os_below_burn_z = 0.5
+
+! SOLVER OPTIONS
+!  updates to these from 7503     to    9691
+!  --------------------------------|-----------------------------
+!      tol_residual_norm1 = 1d-4   |   tol_residual_norm1 = 1d-10
+!      tol_max_residual1 = 1d-2    |   tol_max_residual1 = 1d-9
+!      iter_for_resid_tol2 = 4     |   iter_for_resid_tol2 = 6
 
 / ! end of controls namelist
 
